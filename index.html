@@ -7,36 +7,60 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;font-family:"PingFang SC","Noto Sans SC",sans-serif;background:transparent;user-select:none;-webkit-user-select:none;touch-action:none}
-#app{position:fixed;inset:0;display:flex;flex-direction:column;background:rgba(245,245,250,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-/* 顶部栏 */
-#top-bar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:14px;color:#666;flex-shrink:0}
+
+/* ★ 外层容器：固定全屏，作为拖拽的底板 */
+#app{
+  position:fixed;inset:0;
+  transform-origin:top left;
+  pointer-events:none;  /* 让点击穿透到底板空白区域 */
+}
+
+/* ★ 内层窗口：背景、毛玻璃、所有内容，可以被拖动和缩放 */
+#win{
+  position:absolute;top:0;left:0;width:100vw;height:100vh;
+  background:rgba(245,245,250,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  pointer-events:auto;  /* 窗口内可以交互 */
+  display:flex;flex-direction:column;
+  transform-origin:top left;
+  /* transform: translate(x,y) scale(s) 由 JS 控制 */
+}
+
+/* 顶栏（拖拽手柄） */
+#top-bar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:14px;color:#666;flex-shrink:0;cursor:grab}
+#top-bar:active{cursor:grabbing}
 #mode-label{font-weight:500;cursor:pointer;padding:4px 12px;border-radius:14px;background:rgba(0,0,0,0.05)}
 #mode-label:active{background:rgba(0,0,0,0.1)}
-.top-btn{background:none;border:none;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;color:#666;line-height:1}
+.top-btn{background:none;border:none;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;color:#666;line-height:1;touch-action:manipulation}
 .top-btn:active{background:rgba(0,0,0,0.1)}
 
-/* 中间行：按钮-田字格-按钮 */
-#mid-row{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:4px 8px;min-height:0}
+/* ★ 缩放快捷按钮 */
+#scale-row{display:flex;align-items:center;justify-content:center;gap:6px;padding:2px 0;flex-shrink:0;min-height:28px}
+.scale-btn{background:rgba(0,0,0,0.04);border:none;border-radius:10px;width:26px;height:26px;font-size:14px;cursor:pointer;color:#888;display:flex;align-items:center;justify-content:center;line-height:1}
+.scale-btn:active{background:rgba(0,0,0,0.1)}
+#scale-label{font-size:11px;color:#bbb;min-width:32px;text-align:center}
+
+/* 中间行 */
+#mid-row{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:2px 8px;min-height:0}
 .side-btn{
-  width:44px;height:80px;flex-shrink:0;
-  background:rgba(0,0,0,0.04);border:none;border-radius:12px;
+  width:40px;height:70px;flex-shrink:0;
+  background:rgba(0,0,0,0.04);border:none;border-radius:10px;
   cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  font-size:11px;color:#888;gap:2px;line-height:1.2;
+  font-size:10px;color:#888;gap:1px;line-height:1.2;
   -webkit-tap-highlight-color:transparent;
 }
 .side-btn:active{background:rgba(0,0,0,0.1)}
-.side-btn .arrow{font-size:20px;color:#666}
+.side-btn .arrow{font-size:18px;color:#666}
 #canvas-wrap{flex:1;display:flex;align-items:center;justify-content:center;min-width:0}
 #grid-canvas{display:block;touch-action:none;border-radius:8px;max-width:100%;max-height:100%}
 
 /* 底部 */
-#bottom-area{display:flex;flex-direction:column;align-items:center;padding:8px 20px 14px;gap:4px;flex-shrink:0}
-#current-char{font-size:24px;font-weight:300;color:#888;letter-spacing:2px;min-height:28px;line-height:1.3}
-#progress-wrap{width:100%;max-width:280px;height:3px;background:rgba(0,0,0,0.08);border-radius:2px;overflow:hidden;opacity:0;transition:opacity 0.3s}
+#bottom-area{display:flex;flex-direction:column;align-items:center;padding:4px 20px 10px;gap:3px;flex-shrink:0}
+#current-char{font-size:22px;font-weight:300;color:#888;letter-spacing:2px;min-height:26px;line-height:1.3}
+#progress-wrap{width:100%;max-width:260px;height:2px;background:rgba(0,0,0,0.08);border-radius:2px;overflow:hidden;opacity:0;transition:opacity 0.3s}
 #progress-wrap.show{opacity:1}
 #progress-bar{height:100%;width:0%;background:#888;border-radius:2px;transition:width 0.3s ease}
-#bottom-ctrl{display:flex;gap:10px;align-items:center}
-.bot-btn{background:rgba(0,0,0,0.05);border:none;border-radius:16px;padding:5px 14px;font-size:12px;color:#666;cursor:pointer}
+#bottom-ctrl{display:flex;gap:8px;align-items:center}
+.bot-btn{background:rgba(0,0,0,0.05);border:none;border-radius:14px;padding:4px 12px;font-size:11px;color:#666;cursor:pointer}
 .bot-btn:active{background:rgba(0,0,0,0.12)}
 
 /* 面板 */
@@ -64,23 +88,26 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:"PingFang SC","Noto
 <body>
 
 <div id="app">
-  <!-- 顶栏 -->
+<div id="win">
+
+  <!-- 顶栏（拖拽手柄） -->
   <div id="top-bar">
     <span id="mode-label">📝 随机字</span>
     <div><button class="top-btn" id="btn-settings" title="设置">⚙️</button></div>
   </div>
 
+  <!-- ★ 缩放快捷按钮行 -->
+  <div id="scale-row">
+    <button class="scale-btn" id="btn-zoom-out">−</button>
+    <span id="scale-label">100%</span>
+    <button class="scale-btn" id="btn-zoom-in">+</button>
+  </div>
+
   <!-- 中间：左按钮 + 田字格 + 右按钮 -->
   <div id="mid-row">
-    <button class="side-btn" id="btn-prev">
-      <span class="arrow">◀</span>
-      <span>上一个</span>
-    </button>
+    <button class="side-btn" id="btn-prev"><span class="arrow">◀</span><span>上一个</span></button>
     <div id="canvas-wrap"><canvas id="grid-canvas"></canvas></div>
-    <button class="side-btn" id="btn-next">
-      <span class="arrow">▶</span>
-      <span>下一个</span>
-    </button>
+    <button class="side-btn" id="btn-next"><span class="arrow">▶</span><span>下一个</span></button>
   </div>
 
   <!-- 底部 -->
@@ -91,9 +118,10 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:"PingFang SC","Noto
       <button class="bot-btn" id="btn-clear">✕ 清除</button>
     </div>
   </div>
-</div>
 
-<!-- 面板 -->
+</div><!-- /win -->
+</div><!-- /app -->
+
 <div id="panel-overlay">
   <div id="panel">
     <h2 id="panel-title">设置</h2>
@@ -104,7 +132,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:"PingFang SC","Noto
 
 <script>
 // =============================================================
-// 1. 字库 & 字帖
+// 1. 字库
 // =============================================================
 const COMMON='的一是在不了有和人这中大为上个国我以要他时来用们生到作地于出就分对成会可主发年动同工也能下过子说产种面而方后多定行学法所民得经十三之进着等部度家电力里如水化高自二理起小物现实加量都两体制机当使点从业本去把性好应开它合还因由其些然前外天政四日那社义事平形相全表间样与关各重新线内数正心反你明看原又么利比或但质气第向道命此变条只没结解问意建月公无系军很情者最立代想已通并提直题党程展五果料象员革位入常文总次品式活设及管特件长求老头基资边流路级少图山统接知较将组见计别她手角期根论运农指几九区强放决西被干做必战先回则任取据处队南给色光门即保治北造百规热领七海口东导器压志世金增争济阶油思术极交受联什认六共权收证改清己美再采转更单风切打白教速花带安场身车例真务具万每目至达走积示议声报斗完类八离华名确才科张信马节话米整空元况今集温传土许步群广石记需段研界拉林律叫且究观越织装影算低持音众书布复容儿须际商非验连断深难近矿千周委素技备半办青省列习响约支般史感劳便团往酸历市克何除消构府称太准精值号率族维划选标写存候毛亲快效斯院查江型眼王按格养易置派层片始却专状育厂京识适属圆包火住调满县局照参红细引听该铁价严龙飞';
 const CHARS=COMMON.split('');
@@ -118,29 +146,45 @@ const BOOKS=[
 ];
 
 // =============================================================
-// 2. 状态
+// 2. 状态（含窗口位置和缩放）
 // =============================================================
 const S={
   mode:'random',chars:CHARS,currentChar:'',bookName:'',
   isDrawing:false,strokes:[],currentStroke:[],
-  autoTimer:null,autoDelay:600,  // ★ 默认600ms，提笔后等这么久没动静就跳
+  autoTimer:null,autoDelay:600,
   historyIndex:0,currentIndex:0,
   guideOpacity:0.12,
+  // ★ 窗口位置和缩放（从 localStorage 恢复）
+  winX:0,winY:0,winScale:1,
 };
+
+// 从 localStorage 恢复窗口设置
+try{
+  const d=JSON.parse(localStorage.getItem('mzg_win'));
+  if(d){S.winX=d.x||0;S.winY=d.y||0;S.winScale=d.s||1}
+}catch(e){}
 
 // =============================================================
 // 3. 画布
 // =============================================================
 const cv=document.getElementById('grid-canvas'),cx=cv.getContext('2d'),wp=document.getElementById('canvas-wrap');
 const chEl=document.getElementById('current-char'),pgW=document.getElementById('progress-wrap'),pgB=document.getElementById('progress-bar');
+const win=document.getElementById('win'),app=document.getElementById('app');
+const sLabel=document.getElementById('scale-label');
 let dpr=1,gs=300;
+
+// ★ 应用窗口 transform
+function applyWin(){
+  win.style.transform='translate('+S.winX+'px,'+S.winY+'px) scale('+S.winScale+')';
+  sLabel.textContent=Math.round(S.winScale*100)+'%';
+  try{localStorage.setItem('mzg_win',JSON.stringify({x:S.winX,y:S.winY,s:S.winScale}))}catch(e){}
+}
 
 function resize(){
   dpr=window.devicePixelRatio||1;
   const vw=window.innerWidth,vh=window.innerHeight;
-  // 留出上下空间：顶栏44 + 底部区域 ~80
-  const availH=vh-44-80,availW=vw-44-44-12; // 44*2=侧按钮, 12=间距
-  gs=Math.max(200,Math.min(availW-10,availH-10,480));
+  const availH=vh-44-28-70,availW=vw-40-40-12;
+  gs=Math.max(180,Math.min(availW-10,availH-10,460));
   wp.style.width=gs+'px';wp.style.height=gs+'px';
   cv.width=gs*dpr;cv.height=gs*dpr;
   cv.style.width=gs+'px';cv.style.height=gs+'px';
@@ -182,74 +226,65 @@ function updateUI(){
 }
 
 // =============================================================
-// 4. ★ 核心逻辑：提笔 → 等600ms → 没动静 → 自动跳
-//    再次下笔 → 取消计时（说明还在写）
-//    ★ 双击画布：快速点两下 → 立即跳
+// 4. ★ 拖拽（顶栏拖动窗口）
 // =============================================================
-let lastUp=0; // 上次提笔时间（双击检测用）
+let isDrag=false,dragSX=0,dragSY=0,winSX=0,winSY=0;
 
+const topBar=document.getElementById('top-bar');
+topBar.addEventListener('pointerdown',function(e){
+  if(e.target.closest('.top-btn')||e.target.closest('#mode-label'))return;
+  isDrag=true;
+  dragSX=e.clientX;dragSY=e.clientY;
+  winSX=S.winX;winSY=S.winY;
+  topBar.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+topBar.addEventListener('pointermove',function(e){
+  if(!isDrag)return;
+  S.winX=winSX+(e.clientX-dragSX);
+  S.winY=winSY+(e.clientY-dragSY);
+  applyWin();
+});
+topBar.addEventListener('pointerup',function(){isDrag=false;applyWin()});
+topBar.addEventListener('pointercancel',function(){isDrag=false});
+
+// =============================================================
+// 5. 笔输入 + 双击跳转
+// =============================================================
+let lastUp=0;
 function clearAT(){if(S.autoTimer){clearTimeout(S.autoTimer);S.autoTimer=null}}
-function startAT(){clearAT();S.autoTimer=setTimeout(()=>{S.autoTimer=null;nextChar()},S.autoDelay)}
-
+function startAT(){clearAT();S.autoTimer=setTimeout(function(){S.autoTimer=null;nextChar()},S.autoDelay)}
 function getPos(e){const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top,p:e.pressure||0.5}}
 
 function onDown(e){
   e.preventDefault();
   const now=Date.now();
-
-  // ★ 双击检测：点下去就抬起，两次间隔<350ms → 跳转（不像画画的快速点两下）
-  if(now-lastUp<350 && S.strokes.length===0 && S.currentStroke.length===0){
-    lastUp=0;nextChar();return;
-  }
-
-  clearAT(); // 下笔了 → 取消自动跳转计时（用户还在写）
-  const p=getPos(e);
-  S.isDrawing=true;
-  S.currentStroke=[{x:p.x,y:p.y}];
-  cv.setPointerCapture(e.pointerId);
+  if(now-lastUp<350&&S.strokes.length===0&&S.currentStroke.length===0){lastUp=0;nextChar();return}
+  clearAT();
+  const p=getPos(e);S.isDrawing=true;S.currentStroke=[{x:p.x,y:p.y}];cv.setPointerCapture(e.pointerId);
 }
-function onMove(e){
-  e.preventDefault();if(!S.isDrawing)return;
-  const p=getPos(e);S.currentStroke.push({x:p.x,y:p.y});
-  cx.lineWidth=3+(p.p||0.5)*4;render();
-}
+function onMove(e){e.preventDefault();if(!S.isDrawing)return;const p=getPos(e);S.currentStroke.push({x:p.x,y:p.y});cx.lineWidth=3+(p.p||0.5)*4;render()}
 function onUp(e){
-  e.preventDefault();if(!S.isDrawing)return;
-  S.isDrawing=false;
-  if(S.currentStroke.length>1)S.strokes.push([...S.currentStroke]);
-  S.currentStroke=[];render();
-  lastUp=Date.now();
-  // ★ 提笔了 → 启动自动跳转计时器
-  startAT();
+  e.preventDefault();if(!S.isDrawing)return;S.isDrawing=false;
+  if(S.currentStroke.length>1)S.strokes.push([...S.currentStroke]);S.currentStroke=[];render();
+  lastUp=Date.now();startAT();
 }
-cv.addEventListener('pointerdown',onDown);
-cv.addEventListener('pointermove',onMove);
-cv.addEventListener('pointerup',onUp);
-cv.addEventListener('pointercancel',onUp);
+cv.addEventListener('pointerdown',onDown);cv.addEventListener('pointermove',onMove);cv.addEventListener('pointerup',onUp);cv.addEventListener('pointercancel',onUp);
 
 // =============================================================
-// 5. 跳转控制
+// 6. 跳转
 // =============================================================
 function nextChar(){
   clearAT();
-  if(S.mode==='random'){
-    S.currentChar=S.chars[Math.floor(Math.random()*S.chars.length)];S.historyIndex++;
-  }else{
-    S.historyIndex=Math.min(S.historyIndex+1,S.chars.length-1);
-    S.currentChar=S.chars[S.historyIndex];
-    if(S.historyIndex>=S.chars.length-1)S.historyIndex=-1;
-  }
-  S.strokes=[];S.currentStroke=[];render();updateUI();
+  if(S.mode==='random'){S.currentChar=S.chars[Math.floor(Math.random()*S.chars.length)];S.historyIndex++}
+  else{S.historyIndex=Math.min(S.historyIndex+1,S.chars.length-1);S.currentChar=S.chars[S.historyIndex];if(S.historyIndex>=S.chars.length-1)S.historyIndex=-1}
+  S.strokes=[];S.currentStroke=[];render();updateUI()
 }
 function prevChar(){
   clearAT();S.strokes=[];S.currentStroke=[];
-  if(S.mode==='random'){
-    S.currentChar=S.chars[Math.floor(Math.random()*S.chars.length)];
-  }else{
-    S.currentIndex=Math.max(0,(S.currentIndex||0)-1);
-    S.currentChar=S.chars[S.currentIndex];S.historyIndex=S.currentIndex;
-  }
-  render();updateUI();
+  if(S.mode==='random'){S.currentChar=S.chars[Math.floor(Math.random()*S.chars.length)]}
+  else{S.currentIndex=Math.max(0,(S.currentIndex||0)-1);S.currentChar=S.chars[S.currentIndex];S.historyIndex=S.currentIndex}
+  render();updateUI()
 }
 function clearStrokes(){S.strokes=[];S.currentStroke=[];clearAT();render();updateUI()}
 
@@ -257,24 +292,24 @@ function switchMode(mode){
   S.mode=mode;S.strokes=[];S.currentStroke=[];S.historyIndex=0;S.currentIndex=0;
   document.getElementById('mode-label').textContent=mode==='random'?'📝 随机字':'📖 抄书';
   if(mode==='random'){S.chars=CHARS}else{loadBook(0);return}
-  nextChar();
+  nextChar()
 }
 function loadBook(idx){
   const b=BOOKS[idx];if(!b)return;
   S.bookName=b.title;S.chars=b.text.split('');S.currentIndex=0;S.historyIndex=0;
   S.strokes=[];S.currentStroke=[];S.currentChar=S.chars[0]||'';S.mode='copybook';
-  document.getElementById('mode-label').textContent='📖 '+b.title;render();updateUI();
+  document.getElementById('mode-label').textContent='📖 '+b.title;render();updateUI()
 }
 function loadUserText(t){
   const c=t.replace(/[^\u4e00-\u9fff]/g,'');
   if(!c.length){alert('没找到汉字');return}
   S.bookName='用户导入';S.chars=c.split('');S.currentIndex=0;S.historyIndex=0;
   S.strokes=[];S.currentStroke=[];S.currentChar=S.chars[0]||'';S.mode='copybook';
-  document.getElementById('mode-label').textContent='📖 用户导入';render();updateUI();
+  document.getElementById('mode-label').textContent='📖 用户导入';render();updateUI()
 }
 
 // =============================================================
-// 6. 面板
+// 7. 面板（设置 + 选书）
 // =============================================================
 function openSettings(){
   document.getElementById('panel-title').textContent='设置';
@@ -282,15 +317,21 @@ function openSettings(){
     '<label>提笔后等多久自动跳转</label><div class="range-row">'+
     '<input type="range" id="s-del" min="200" max="2500" step="50" value="'+S.autoDelay+'">'+
     '<span id="s-del-val">'+(S.autoDelay/1000).toFixed(1)+'秒</span></div>'+
+    '<label>窗口缩放</label><div class="range-row">'+
+    '<input type="range" id="s-scl" min="30" max="150" step="5" value="'+Math.round(S.winScale*100)+'">'+
+    '<span id="s-scl-val">'+Math.round(S.winScale*100)+'%</span></div>'+
     '<label>引导字透明度</label><div class="range-row">'+
     '<input type="range" id="s-op" min="3" max="30" step="1" value="'+Math.round(S.guideOpacity*100)+'">'+
     '<span id="s-op-val">'+Math.round(S.guideOpacity*100)+'%</span></div>'+
+    '<button class="panel-btn" id="s-rst">↺ 重置窗口位置和大小</button>'+
     '<button class="panel-btn primary" id="s-sw">'+(S.mode==='random'?'切换到：抄书模式':'切换到：随机模式')+'</button>'+
     (S.mode==='copybook'?'<button class="panel-btn" id="s-bk">选书</button>':'')+
     '<button class="panel-btn" id="s-im">📂 导入 TXT 文件</button>'+
     '<input type="file" id="file-input" accept=".txt" style="display:none">';
   document.getElementById('s-del').oninput=function(){S.autoDelay=+this.value;document.getElementById('s-del-val').textContent=(S.autoDelay/1000).toFixed(1)+'秒'};
+  document.getElementById('s-scl').oninput=function(){S.winScale=+this.value/100;document.getElementById('s-scl-val').textContent=this.value+'%';applyWin()};
   document.getElementById('s-op').oninput=function(){S.guideOpacity=+this.value/100;document.getElementById('s-op-val').textContent=this.value+'%';render()};
+  document.getElementById('s-rst').onclick=function(){S.winX=0;S.winY=0;S.winScale=1;applyWin();document.getElementById('s-scl').value=100;document.getElementById('s-scl-val').textContent='100%'};
   document.getElementById('s-sw').onclick=function(){document.getElementById('panel-overlay').classList.remove('show');switchMode(S.mode==='random'?'copybook':'random')};
   const sb=document.getElementById('s-bk');if(sb)sb.onclick=openBookList;
   document.getElementById('s-im').onclick=function(){document.getElementById('file-input').click()};
@@ -305,7 +346,7 @@ function openBookList(){
   let h='';for(let i=0;i<BOOKS.length;i++)h+='<div class="book-item" data-idx="'+i+'">'+BOOKS[i].title+'（'+BOOKS[i].text.length+'字）</div>';
   h+='<label id="file-input-label" for="file-input">📂 从本地导入 TXT 文件...</label><input type="file" id="file-input" accept=".txt" style="display:none">';
   document.getElementById('panel-content').innerHTML=h;
-  document.querySelectorAll('.book-item').forEach(el=>{el.onclick=function(){loadBook(+this.dataset.idx);document.getElementById('panel-overlay').classList.remove('show')}});
+  document.querySelectorAll('.book-item').forEach(function(el){el.onclick=function(){loadBook(+this.dataset.idx);document.getElementById('panel-overlay').classList.remove('show')}});
   document.getElementById('file-input').onchange=function(e){
     const f=e.target.files[0];if(!f)return;
     const r=new FileReader();r.onload=function(ev){loadUserText(ev.target.result);document.getElementById('panel-overlay').classList.remove('show')};
@@ -313,16 +354,22 @@ function openBookList(){
   document.getElementById('panel-overlay').classList.add('show');
 }
 
+// =============================================================
+// 8. 事件绑定
+// =============================================================
 document.getElementById('btn-settings').onclick=openSettings;
 document.getElementById('mode-label').onclick=function(){switchMode(S.mode==='random'?'copybook':'random')};
 document.getElementById('btn-next').onclick=nextChar;
 document.getElementById('btn-prev').onclick=prevChar;
 document.getElementById('btn-clear').onclick=clearStrokes;
+document.getElementById('btn-zoom-in').onclick=function(){S.winScale=Math.min(1.5,S.winScale+0.1);applyWin()};
+document.getElementById('btn-zoom-out').onclick=function(){S.winScale=Math.max(0.3,S.winScale-0.1);applyWin()};
 document.getElementById('panel-close').onclick=function(){document.getElementById('panel-overlay').classList.remove('show')};
 document.getElementById('panel-overlay').onclick=function(e){if(e.target===document.getElementById('panel-overlay'))document.getElementById('panel-overlay').classList.remove('show')};
 window.addEventListener('resize',resize);
 
-function init(){resize();S.mode='random';S.chars=CHARS;S.currentChar=S.chars[Math.floor(Math.random()*S.chars.length)];S.historyIndex=0;render();updateUI()}
+// 初始启动
+function init(){resize();S.mode='random';S.chars=CHARS;S.currentChar=S.chars[Math.floor(Math.random()*S.chars.length)];S.historyIndex=0;applyWin();render();updateUI()}
 init();
 </script>
 </body>
