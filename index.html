@@ -6,9 +6,7 @@
 <title>描字格</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:10- 覆盖度达标线 55% → 30%（大概描到就算）
-+ 新增双击画布 → 跳转下一个
-- 简化了覆盖度显示（不显眼了）0%;height:100%;overflow:hidden;font-family:"PingFang SC","Noto Sans SC",sans-serif;background:transparent;user-select:none;-webkit-user-select:none;touch-action:none}
+html,body{width:100%;height:100%;overflow:hidden;font-family:"PingFang SC","Noto Sans SC",sans-serif;background:transparent;user-select:none;-webkit-user-select:none;touch-action:none}
 #app{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(245,245,250,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 #top-bar{position:absolute;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:14px;color:#666;z-index:10}
 #mode-label{font-weight:500;cursor:pointer;padding:6px 12px;border-radius:16px;background:rgba(0,0,0,0.06)}
@@ -20,16 +18,14 @@ html,body{width:10- 覆盖度达标线 55% → 30%（大概描到就算）
 #grid-canvas{display:block;touch-action:none;border-radius:8px}
 #bottom-area{position:absolute;bottom:0;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:12px 20px 16px;gap:4px}
 #current-char{font-size:26px;font-weight:300;color:#888;letter-spacing:2px;min-height:32px}
-/* ★ 简化了覆盖度指示器 */
-#coverage-row{display:flex;align-items:center;gap:6px;min-height:18px}
-#coverage-dot{width:8px;height:8px;border-radius:50%;background:#ddd;transition:background 0.3s;flex-shrink:0}
-#coverage-label{font-size:11px;color:#bbb;transition:color 0.3s}
-#coverage-label.good{color:#4CAF50}
-#coverage-label.ok{color:#FF9800}
+#status-row{display:flex;align-items:center;gap:6px;min-height:18px}
+#status-icon{width:8px;height:8px;border-radius:50%;background:#ddd;transition:background 0.3s;flex-shrink:0}
+#status-text{font-size:11px;color:#bbb;transition:color 0.3s}
+#status-text.match{color:#4CAF50}
+#status-text.writing{color:#FF9800}
 #progress-wrap{width:100%;max-width:320px;height:3px;background:rgba(0,0,0,0.08);border-radius:2px;overflow:hidden;opacity:0;transition:opacity 0.3s;margin-top:2px}
 #progress-wrap.show{opacity:1}
 #progress-bar{height:100%;width:0%;background:#888;border-radius:2px;transition:width 0.3s ease}
-/* ★ 底部按钮行 */
 #bottom-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center}
 .ctrl-btn{background:rgba(0,0,0,0.06);border:none;border-radius:20px;padding:6px 14px;font-size:12px;color:#555;cursor:pointer;display:flex;align-items:center;gap:4px}
 .ctrl-btn:active{background:rgba(0,0,0,0.14)}
@@ -61,338 +57,82 @@ html,body{width:10- 覆盖度达标线 55% → 30%（大概描到就算）
 </head>
 <body>
 <div id="app">
-  <div id="top-bar">
-    <span id="mode-label">📝 随机字</span>
-    <div id="top-right"><button class="top-btn" id="btn-settings" title="设置">⚙️</button></div>
-  </div>
-  <div id="canvas-wrap"><canvas id="grid-canvas"></canvas></div>
-  <div id="bottom-area">
-    <div id="current-char"></div>
-    <div id="coverage-row">
-      <div id="coverage-dot"></div>
-      <span id="coverage-label"> </span>
-    </div>
-    <div id="progress-wrap"><div id="progress-bar"></div></div>
-    <div id="bottom-controls">
-      <button class="ctrl-btn" id="btn-prev">◀ 上一个</button>
-      <button class="ctrl-btn" id="btn-clear">✕ 清除</button>
-      <button class="ctrl-btn" id="btn-next">下一个 ▶</button>
-      <button class="ctrl-btn confirm" id="btn-confirm">✓ 确认</button>
-    </div>
-  </div>
+<div id="top-bar">
+<span id="mode-label">📝 随机字</span>
+<div id="top-right"><button class="top-btn" id="btn-settings" title="设置">⚙️</button></div>
+</div>
+<div id="canvas-wrap"><canvas id="grid-canvas"></canvas></div>
+<div id="bottom-area">
+<div id="current-char"></div>
+<div id="status-row"><div id="status-icon"></div><span id="status-text">写吧</span></div>
+<div id="progress-wrap"><div id="progress-bar"></div></div>
+<div id="bottom-controls">
+<button class="ctrl-btn" id="btn-prev">◀ 上一个</button>
+<button class="ctrl-btn" id="btn-clear">✕ 重写</button>
+<button class="ctrl-btn" id="btn-next">下一个 ▶</button>
+<button class="ctrl-btn confirm" id="btn-confirm">✓ 确认</button>
+</div>
+</div>
 </div>
 <div id="panel-overlay">
-  <div id="panel">
-    <h2 id="panel-title">设置</h2>
-    <div id="panel-content"></div>
-    <button class="panel-close" id="panel-close">关闭</button>
-  </div>
+<div id="panel"><h2 id="panel-title">设置</h2><div id="panel-content"></div><button class="panel-close" id="panel-close">关闭</button></div>
 </div>
 <script>
-// =============================================================
-// 1. 字库 & 字帖
-// =============================================================
-const COMMON = '的一是在不了有和人这中大为上个国我以要他时来用们生到作地于出就分对成会可主发年动同工也能下过子说产种面而方后多定行学法所民得经十三之进着等部度家电力里如水化高自二理起小物现实加量都两体制机当使点从业本去把性好应开它合还因由其些然前外天政四日那社义事平形相全表间样与关各重新线内数正心反你明看原又么利比或但质气第向道命此变条只没结解问意建月公无系军很情者最立代想已通并提直题党程展五果料象员革位入常文总次品式活设及管特件长求老头基资边流路级少图山统接知较将组见计别她手角期根论运农指几九区强放决西被干做必战先回则任取据处队南给色光门即保治北造百规热领七海口东导器压志世金增争济阶油思术极交受联什认六共权收证改清己美再采转更单风切打白教速花带安场身车例真务具万每目至达走积示议声报斗完类八离华名确才科张信马节话米整空元况今集温传土许步群广石记需段研界拉林律叫且究观越织装影算低持音众书布复容儿须际商非验连断深难近矿千周委素技备半办青省列习响约支般史感劳便团往酸历市克何除消构府称太准精值号率族维划选标写存候毛亲快效斯院查江型眼王按格养易置派层片始却专状育厂京识适属圆包火住调满县局照参红细引听该铁价严龙飞';
-const CHARS = COMMON.split('');
-const BOOKS = [
-  {title:'三字经（节选）', text:'人之初性本善性相近习相远苟不教性乃迁教之道贵以专昔孟母择邻处子不学断机杼窦燕山有义方教五子名俱扬养不教父之过教不严师之惰子不学非所宜幼不学老何为玉不琢不成器人不学不知义为人子方少时亲师友习礼仪香九龄能温席孝于亲所当执融四岁能让梨弟于长宜先知首孝悌次见闻知某数识某文一而十十而百百而千千而万'},
-  {title:'百家姓（节选）', text:'赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜戚谢邹喻柏水窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳丰鲍史唐费廉岑薛雷贺倪汤滕殷罗毕郝邬安常乐于时傅皮卞齐康伍余元卜顾孟平黄和穆萧尹姚邵湛汪祁毛禹狄米贝明臧计伏成戴谈宋茅庞熊纪舒屈项祝董梁杜阮蓝闵席季麻强贾路娄危江童颜郭梅盛林刁钟徐邱骆高夏蔡田樊胡凌霍'},
-  {title:'静夜思（李白）', text:'床前明月光疑是地上霜举头望明月低头思故乡'},
-  {title:'春晓（孟浩然）', text:'春眠不觉晓处处闻啼鸟夜来风雨声花落知多少'},
-  {title:'登鹳雀楼（王之涣）', text:'白日依山尽黄河入海流欲穷千里目更上一层楼'},
-  {title:'咏柳（贺知章）', text:'碧玉妆成一树高万条垂下绿丝绦不知细叶谁裁出二月春风似剪刀'},
+// ========== 1. 字库 + 字帖 ==========
+const COMMON='的一是在不了有和人这中大为上个国我以要他时来用们生到作地于出就分对成会可主发年动同工也能下过子说产种面而方后多定行学法所民得经十三之进着等部度家电力里如水化高自二理起小物现实加量都两体制机当使点从业本去把性好应开它合还因由其些然前外天政四日那社义事平形相全表间样与关各重新线内数正心反你明看原又么利比或但质气第向道命此变条只没结解问意建月公无系军很情者最立代想已通并提直题党程展五果料象员革位入常文总次品式活设及管特件长求老头基资边流路级少图山统接知较将组见计别她手角期根论运农指几九区强放决西被干做必战先回则任取据处队南给色光门即保治北造百规热领七海口东导器压志世金增争济阶油思术极交受联什认六共权收证改清己美再采转更单风切打白教速花带安场身车例真务具万每目至达走积示议声报斗完类八离华名确才科张信马节话米整空元况今集温传土许步群广石记需段研界拉林律叫且究观越织装影算低持音众书布复容儿须际商非验连断深难近矿千周委素技备半办青省列习响约支般史感劳便团往酸历市克何除消构府称太准精值号率族维划选标写存候毛亲快效斯院查江型眼王按格养易置派层片始却专状育厂京识适属圆包火住调满县局照参红细引听该铁价严龙飞';
+const CHARS=COMMON.split('');
+const BOOKS=[
+{title:'三字经（节选）',text:'人之初性本善性相近习相远苟不教性乃迁教之道贵以专昔孟母择邻处子不学断机杼窦燕山有义方教五子名俱扬养不教父之过教不严师之惰子不学非所宜幼不学老何为玉不琢不成器人不学不知义为人子方少时亲师友习礼仪香九龄能温席孝于亲所当执融四岁能让梨弟于长宜先知首孝悌次见闻知某数识某文一而十十而百百而千千而万'},
+{title:'百家姓（节选）',text:'赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜戚谢邹喻柏水窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳丰鲍史唐费廉岑薛雷贺倪汤滕殷罗毕郝邬安常乐于时傅皮卞齐康伍余元卜顾孟平黄和穆萧尹姚邵湛汪祁毛禹狄米贝明臧计伏成戴谈宋茅庞熊纪舒屈项祝董梁杜阮蓝闵席季麻强贾路娄危江童颜郭梅盛林刁钟徐邱骆高夏蔡田樊胡凌霍'},
+{title:'静夜思（李白）',text:'床前明月光疑是地上霜举头望明月低头思故乡'},
+{title:'春晓（孟浩然）',text:'春眠不觉晓处处闻啼鸟夜来风雨声花落知多少'},
+{title:'登鹳雀楼（王之涣）',text:'白日依山尽黄河入海流欲穷千里目更上一层楼'},
+{title:'咏柳（贺知章）',text:'碧玉妆成一树高万条垂下绿丝绦不知细叶谁裁出二月春风似剪刀'},
 ];
-
-// =============================================================
-// 2. 状态
-// =============================================================
-const S = {
-  mode:'random', chars:CHARS, currentChar:'', bookName:'',
-  isDrawing:false, strokes:[], currentStroke:[],
-  autoTimer:null, autoDelay:1500,
-  historyIndex:0, currentIndex:0,
-  guideOpacity:0.12,
-  coverageThreshold:0.30,   // ★ 降到30%，大概描到就行
-  hasDrawn:false,
-};
-
-// =============================================================
-// 3. 画布
-// =============================================================
-const cv = document.getElementById('grid-canvas');
-const cx = cv.getContext('2d');
-const wp = document.getElementById('canvas-wrap');
-const chEl = document.getElementById('current-char');
-const pgW = document.getElementById('progress-wrap');
-const pgB = document.getElementById('progress-bar');
-const cDot = document.getElementById('coverage-dot');
-const cLbl = document.getElementById('coverage-label');
-const btnC = document.getElementById('btn-confirm');
-let dpr=1, gs=300;
-
-function resize() {
-  dpr = window.devicePixelRatio || 1;
-  const vw=window.innerWidth, vh=window.innerHeight;
-  gs = Math.max(240, Math.min(vw-40, vh-180, 500));
-  wp.style.width=gs+'px'; wp.style.height=gs+'px';
-  cv.width=gs*dpr; cv.height=gs*dpr;
-  cv.style.width=gs+'px'; cv.style.height=gs+'px';
-  cx.scale(dpr, dpr);
-  render();
-}
-
-function render() {
-  const sz=gs, pd=10, gx=pd, gy=pd, gw=sz-pd*2, hf=gw/2;
-  cx.clearRect(0,0,sz,sz);
-  cx.strokeStyle='rgba(0,0,0,0.15)'; cx.lineWidth=1;
-  cx.strokeRect(gx,gy,gw,gw);
-  cx.beginPath(); cx.moveTo(gx+hf,gy); cx.lineTo(gx+hf,gy+gw);
-  cx.moveTo(gx,gy+hf); cx.lineTo(gx+gw,gy+hf); cx.stroke();
-  if (S.currentChar) {
-    cx.font='bold '+(gw*0.65)+'px "KaiTi","STKaiti","Noto Serif SC","SimSun",serif';
-    cx.textAlign='center'; cx.textBaseline='middle';
-    cx.fillStyle='rgba(100,100,120,'+S.guideOpacity+')';
-    cx.fillText(S.currentChar, sz/2, sz/2+2);
-  }
-  cx.strokeStyle='#3b82f6'; cx.lineCap='round'; cx.lineJoin='round';
-  for (let i=0;i<S.strokes.length;i++) drawStroke(S.strokes[i]);
-  if (S.currentStroke.length>1) {
-    cx.globalAlpha=0.9; drawStroke(S.currentStroke); cx.globalAlpha=1;
-  }
-}
-function drawStroke(pts) {
-  if (pts.length<2) return;
-  cx.beginPath(); cx.moveTo(pts[0].x, pts[0].y);
-  for (let i=1;i<pts.length-1;i++) {
-    const mx=(pts[i].x+pts[i+1].x)/2, my=(pts[i].y+pts[i+1].y)/2;
-    cx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
-  }
-  cx.lineTo(pts[pts.length-1].x, pts[pts.length-1].y);
-  cx.stroke();
-}
-
-// =============================================================
-// 4. ★ 覆盖度检测（阈值降到30%）
-// =============================================================
-const CS=64;
-let _tc=null, _tx=null;
-function getTC() {
-  if (!_tc) { _tc=document.createElement('canvas'); _tc.width=CS; _tc.height=CS; _tx=_tc.getContext('2d'); }
-  _tx.setTransform(1,0,0,1,0,0);
-  return _tx;
-}
-function calcCoverage() {
-  const t=getTC(), sc=CS/gs, sz=gs, pd=10, gw=sz-pd*2, fs=gw*0.65;
-  t.clearRect(0,0,CS,CS); t.save(); t.scale(sc,sc);
-  t.font='bold '+fs+'px "KaiTi","STKaiti","Noto Serif SC","SimSun",serif';
-  t.textAlign='center'; t.textBaseline='middle'; t.fillStyle='black';
-  t.fillText(S.currentChar, sz/2, sz/2+2); t.restore();
-  const cp = t.getImageData(0,0,CS,CS).data;
-  t.clearRect(0,0,CS,CS); t.save(); t.scale(sc,sc);
-  t.strokeStyle='black'; t.lineWidth=4; t.lineCap='round'; t.lineJoin='round';
-  for (let i=0;i<S.strokes.length;i++) {
-    const s=S.strokes[i]; if (s.length<2) continue;
-    t.beginPath(); t.moveTo(s[0].x, s[0].y);
-    for (let j=1;j<s.length-1;j++)
-      t.quadraticCurveTo(s[j].x,s[j].y,(s[j].x+s[j+1].x)/2,(s[j].y+s[j+1].y)/2);
-    t.lineTo(s[s.length-1].x, s[s.length-1].y); t.stroke();
-  }
-  t.restore();
-  const up = t.getImageData(0,0,CS,CS).data;
-  let cpx=0, upx=0, mpx=0;
-  for (let i=0;i<cp.length;i+=4) {
-    const ci=cp[i+3]>100, ui=up[i+3]>100;
-    if (ci) cpx++; if (ui) upx++; if (ci&&ui) mpx++;
-  }
-  const cov = cpx>0 ? mpx/cpx : 0;
-  const scr = upx>0 ? (upx-mpx)/upx : 0;
-  return { cov, good: cov>=S.coverageThreshold && scr<0.7 };
-}
-
-function updateCoverage() {
-  if (!S.hasDrawn || S.strokes.length===0) {
-    cDot.style.background='#ddd'; cLbl.textContent=''; return;
-  }
-  const c=calcCoverage();
-  if (c.good) {
-    cDot.style.background='#4CAF50';
-    cLbl.textContent='✓'; cLbl.className='good';
-    btnC.disabled=false;
-  } else {
-    cDot.style.background='#FF9800';
-    cLbl.textContent='描'; cLbl.className='ok';
-    btnC.disabled=false;
-  }
-}
-function updateUI() {
-  chEl.textContent=S.currentChar||'';
-  if (S.mode==='copybook') {
-    pgW.classList.add('show');
-    pgB.style.width=Math.min(S.chars.length>0?S.historyIndex/S.chars.length*100:0,100)+'%';
-  } else { pgW.classList.remove('show'); }
-  updateCoverage();
-}
-
-// =============================================================
-// 5. 笔输入  +  ★ 双击检测
-// =============================================================
-let lastTap = 0;  // ★ 双击检测用：上次点击时间戳
-
-function getPos(e) {
-  const r=cv.getBoundingClientRect();
-  return { x:e.clientX-r.left, y:e.clientY-r.top, p:e.pressure||0.5 };
-}
-
-function onDown(e) {
-  e.preventDefault();
-  // ★ 双击检测：两次 pointerdown 间隔 < 400ms → 跳转
-  const now = Date.now();
-  if (now - lastTap < 400) {
-    lastTap = 0;    // 重置，防止三连击
-    nextChar();     // 双击跳转
-    return;
-  }
-  lastTap = now;
-
-  const p=getPos(e);
-  S.isDrawing=true;
-  S.currentStroke=[{x:p.x,y:p.y}];
-  S.hasDrawn=true;
-  clearAT();
-  cv.setPointerCapture(e.pointerId);
-  updateCoverage();
-}
-function onMove(e) {
-  e.preventDefault(); if (!S.isDrawing) return;
-  const p=getPos(e); S.currentStroke.push({x:p.x,y:p.y});
-  cx.lineWidth=3+(p.p||0.5)*4; render();
-}
-function onUp(e) {
-  e.preventDefault(); if (!S.isDrawing) return;
-  S.isDrawing=false;
-  if (S.currentStroke.length>1) S.strokes.push([...S.currentStroke]);
-  S.currentStroke=[]; render(); updateCoverage();
-  const c=calcCoverage();
-  if (c.good) startAT();
-}
-cv.addEventListener('pointerdown', onDown);
-cv.addEventListener('pointermove', onMove);
-cv.addEventListener('pointerup', onUp);
-cv.addEventListener('pointercancel', onUp);
-
-// =============================================================
-// 6. 跳转
-// =============================================================
-function clearAT() { if (S.autoTimer) { clearTimeout(S.autoTimer); S.autoTimer=null; } }
-function startAT() { clearAT(); S.autoTimer=setTimeout(()=>{ S.autoTimer=null; nextChar(); }, S.autoDelay); }
-btnC.addEventListener('click', nextChar);
-
-function nextChar() {
-  clearAT();
-  if (S.mode==='random') {
-    S.currentChar=S.chars[Math.floor(Math.random()*S.chars.length)];
-    S.historyIndex++;
-  } else {
-    S.historyIndex=Math.min(S.historyIndex+1, S.chars.length-1);
-    S.currentChar=S.chars[S.historyIndex];
-    if (S.historyIndex>=S.chars.length-1) S.historyIndex=-1;
-  }
-  S.strokes=[]; S.currentStroke=[]; S.hasDrawn=false;
-  render(); updateUI();
-}
-function prevChar() {
-  clearAT(); S.strokes=[]; S.currentStroke=[]; S.hasDrawn=false;
-  if (S.mode==='random') {
-    S.currentChar=S.chars[Math.floor(Math.random()*S.chars.length)];
-  } else {
-    S.currentIndex=Math.max(0, (S.currentIndex||0)-1);
-    S.currentChar=S.chars[S.currentIndex]; S.historyIndex=S.currentIndex;
-  }
-  render(); updateUI();
-}
-function clearStrokes(s) { S.strokes=[]; S.currentStroke=[]; S.hasDrawn=false; if(!s)clearAT(); render(); updateUI(); }
-
-function switchMode(mode) {
-  S.mode=mode; S.strokes=[]; S.currentStroke=[]; S.hasDrawn=false;
-  S.historyIndex=0; S.currentIndex=0;
-  document.getElementById('mode-label').textContent=mode==='random'?'📝 随机字':'📖 抄书';
-  if (mode==='random') { S.chars=CHARS; } else { loadBook(0); return; }
-  nextChar();
-}
-function loadBook(idx) {
-  const b=BOOKS[idx]; if(!b)return;
-  S.bookName=b.title; S.chars=b.text.split(''); S.currentIndex=0; S.historyIndex=0;
-  S.strokes=[]; S.currentStroke=[]; S.hasDrawn=false;
-  S.currentChar=S.chars[0]||''; S.mode='copybook';
-  document.getElementById('mode-label').textContent='📖 '+b.title;
-  render(); updateUI();
-}
-function loadUserText(text) {
-  const c=text.replace(/[^\u4e00-\u9fff]/g,'');
-  if(c.length===0){alert('导入文本中没找到汉字');return;}
-  S.bookName='用户导入'; S.chars=c.split(''); S.currentIndex=0; S.historyIndex=0;
-  S.strokes=[]; S.currentStroke=[]; S.hasDrawn=false;
-  S.currentChar=S.chars[0]||''; S.mode='copybook';
-  document.getElementById('mode-label').textContent='📖 用户导入';
-  render(); updateUI();
-}
-
-// =============================================================
-// 7. 面板
-// =============================================================
-function openSettings() {
-  document.getElementById('panel-title').textContent='设置';
-  document.getElementById('panel-content').innerHTML=
-    '<label>自动跳转延时</label><div class="range-row">'+
-    '<input type="range" id="s-delay" min="500" max="4000" step="100" value="'+S.autoDelay+'">'+
-    '<span id="s-delay-val">'+(S.autoDelay/1000).toFixed(1)+'秒</span></div>'+
-    '<label>覆盖度达标线（越低越容易自动跳）</label><div class="range-row">'+
-    '<input type="range" id="s-thr" min="10" max="80" step="5" value="'+Math.round(S.coverageThreshold*100)+'">'+
-    '<span id="s-thr-val">'+Math.round(S.coverageThreshold*100)+'%</span></div>'+
-    '<label>引导字透明度</label><div class="range-row">'+
-    '<input type="range" id="s-op" min="3" max="30" step="1" value="'+Math.round(S.guideOpacity*100)+'">'+
-    '<span id="s-op-val">'+Math.round(S.guideOpacity*100)+'%</span></div>'+
-    '<button class="panel-btn primary" id="s-sw">'+(S.mode==='random'?'切换到：抄书模式':'切换到：随机模式')+'</button>'+
-    (S.mode==='copybook'?'<button class="panel-btn" id="s-bk">选书</button>':'')+
-    '<button class="panel-btn" id="s-im">📂 导入 TXT 文件</button>'+
-    '<input type="file" id="file-input" accept=".txt" style="display:none">';
-  document.getElementById('s-delay').oninput=function(){S.autoDelay=+this.value;document.getElementById('s-delay-val').textContent=(S.autoDelay/1000).toFixed(1)+'秒';};
-  document.getElementById('s-thr').oninput=function(){S.coverageThreshold=+this.value/100;document.getElementById('s-thr-val').textContent=this.value+'%';};
-  document.getElementById('s-op').oninput=function(){S.guideOpacity=+this.value/100;document.getElementById('s-op-val').textContent=this.value+'%';render();};
-  document.getElementById('s-sw').onclick=function(){document.getElementById('panel-overlay').classList.remove('show');switchMode(S.mode==='random'?'copybook':'random');};
-  const sb=document.getElementById('s-bk');if(sb)sb.onclick=openBookList;
-  document.getElementById('s-im').onclick=function(){document.getElementById('file-input').click();};
-  document.getElementById('file-input').onchange=function(e){
-    const f=e.target.files[0];if(!f)return;
-    const r=new FileReader();r.onload=function(ev){loadUserText(ev.target.result);document.getElementById('panel-overlay').classList.remove('show');};
-    r.readAsText(f,'UTF-8');
-  };
-  document.getElementById('panel-overlay').classList.add('show');
-}
-function openBookList() {
-  document.getElementById('panel-title').textContent='选择字帖';
-  let h='';for(let i=0;i<BOOKS.length;i++)h+='<div class="book-item" data-idx="'+i+'">'+BOOKS[i].title+'（'+BOOKS[i].text.length+'字）</div>';
-  h+='<label id="file-input-label" for="file-input">📂 从本地导入 TXT 文件...</label><input type="file" id="file-input" accept=".txt" style="display:none">';
-  document.getElementById('panel-content').innerHTML=h;
-  const items=document.querySelectorAll('.book-item');
-  for(let i=0;i<items.length;i++)items[i].onclick=function(){loadBook(+this.dataset.idx);document.getElementById('panel-overlay').classList.remove('show');};
-  document.getElementById('file-input').onchange=function(e){
-    const f=e.target.files[0];if(!f)return;
-    const r=new FileReader();r.onload=function(ev){loadUserText(ev.target.result);document.getElementById('panel-overlay').classList.remove('show');};
-    r.readAsText(f,'UTF-8');
-  };
-  document.getElementById('panel-overlay').classList.add('show');
-}
-
-document.getElementById('btn-settings').onclick=openSettings;
-document.getElementById('mode-label').onclick=function(){switchMode(S.mode==='random'?'copybook':'random');};
-document.getElementById('btn-next').onclick=nextChar;
-document.getElementById('btn-prev').onclick=prevChar;
-document.getElementById('btn-clear').onclick=function(){clearStrokes(false);};
-document.getElementById('panel-close').onclick=function(){document.getElementById('panel-overlay').classList.remove('show');};
-document.getElementById('panel-overlay').onclick=function(e){if(e.target===document.getElementById('panel-overlay'))document.getElementById('panel-overlay').classList.remove('show');};
-window.addEventListener('resize', resize);
-
+// ========== 2. 状态 ==========
+const S={mode:'random',chars:CHARS,currentChar:'',bookName:'',isDrawing:false,strokes:[],currentStroke:[],autoTimer:null,autoDelay:1500,historyIndex:0,currentIndex:0,guideOpacity:0.12,hasDrawn:false,recognized:false};
+// ========== 3. Canvas 渲染 ==========
+const cv=document.getElementById('grid-canvas'),cx=cv.getContext('2d'),wp=document.getElementById('canvas-wrap'),chEl=document.getElementById('current-char'),pgW=document.getElementById('progress-wrap'),pgB=document.getElementById('progress-bar'),sIcon=document.getElementById('status-icon'),sText=document.getElementById('status-text'),btnC=document.getElementById('btn-confirm');let dpr=1,gs=300;
+function resize(){dpr=window.devicePixelRatio||1;const vw=window.innerWidth,vh=window.innerHeight;gs=Math.max(240,Math.min(vw-40,vh-180,500));wp.style.width=gs+'px';wp.style.height=gs+'px';cv.width=gs*dpr;cv.height=gs*dpr;cv.style.width=gs+'px';cv.style.height=gs+'px';cx.scale(dpr,dpr);render();}
+function render(){const sz=gs,pd=10,gx=pd,gy=pd,gw=sz-pd*2,hf=gw/2;cx.clearRect(0,0,sz,sz);cx.strokeStyle='rgba(0,0,0,0.15)';cx.lineWidth=1;cx.strokeRect(gx,gy,gw,gw);cx.beginPath();cx.moveTo(gx+hf,gy);cx.lineTo(gx+hf,gy+gw);cx.moveTo(gx,gy+hf);cx.lineTo(gx+gw,gy+hf);cx.stroke();if(S.currentChar){cx.font='bold '+(gw*0.65)+'px "KaiTi","STKaiti","Noto Serif SC","SimSun",serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillStyle='rgba(100,100,120,'+S.guideOpacity+')';cx.fillText(S.currentChar,sz/2,sz/2+2);}cx.strokeStyle='#3b82f6';cx.lineCap='round';cx.lineJoin='round';for(let i=0;i<S.strokes.length;i++)drawStroke(S.strokes[i]);if(S.currentStroke.length>1){cx.globalAlpha=0.9;drawStroke(S.currentStroke);cx.globalAlpha=1;}}
+function drawStroke(p){if(p.length<2)return;cx.beginPath();cx.moveTo(p[0].x,p[0].y);for(let i=1;i<p.length-1;i++){const mx=(p[i].x+p[i+1].x)/2,my=(p[i].y+p[i+1].y)/2;cx.quadraticCurveTo(p[i].x,p[i].y,mx,my);}cx.lineTo(p[p.length-1].x,p[p.length-1].y);cx.stroke();}
+// ========== 4. ★★★ 网格特征识别（像手写输入法一样）★★★ ==========
+const RS=48;let _rc=null,_rx=null;
+function getR(){if(!_rc){_rc=document.createElement('canvas');_rc.width=RS;_rc.height=RS;_rx=_rc.getContext('2d');}_rx.setTransform(1,0,0,1,0,0);return _rx;}
+// 渲染目标字到 48x48
+function renderTarget(c){const t=getR();t.clearRect(0,0,RS,RS);t.font='bold 38px "KaiTi","STKaiti","Noto Serif SC","SimSun",serif';t.textAlign='center';t.textBaseline='middle';t.fillStyle='black';t.fillText(c,RS/2,RS/2+1);return t.getImageData(0,0,RS,RS).data;}
+// 渲染用户笔画到 48x48（自动缩放对齐，解决写大小不一的问题）
+function renderUser(){const t=getR();t.clearRect(0,0,RS,RS);let pts=[];for(const s of S.strokes)for(const p of s)pts.push(p);if(pts.length<2)return t.getImageData(0,0,RS,RS).data;let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;for(const p of pts){if(p.x<minX)minX=p.x;if(p.y<minY)minY=p.y;if(p.x>maxX)maxX=p.x;if(p.y>maxY)maxY=p.y;}const bw=maxX-minX,bh=maxY-minY;if(bw<3&&bh<3)return t.getImageData(0,0,RS,RS).data;const px=bw*0.3,py=bh*0.3;const sc=Math.min(RS/(bw+px*2),RS/(bh+py*2))*0.85;t.save();t.translate(RS/2,RS/2);t.scale(sc,sc);t.translate(-(minX+maxX)/2,-(minY+maxY)/2);t.strokeStyle='black';t.lineWidth=4/sc;t.lineCap='round';t.lineJoin='round';for(const s of S.strokes){if(s.length<2)continue;t.beginPath();t.moveTo(s[0].x,s[0].y);for(let i=1;i<s.length-1;i++)t.quadraticCurveTo(s[i].x,s[i].y,(s[i].x+s[i+1].x)/2,(s[i].y+s[i+1].y)/2);t.lineTo(s[s.length-1].x,s[s.length-1].y);t.stroke();}t.restore();return t.getImageData(0,0,RS,RS).data;}
+// 从像素数据提取4x4=16个格子的墨迹密度
+function extractFeat(pix){const N=4,cs=RS/N;const f=[];for(let r=0;r<N;r++){for(let c=0;c<N;c++){let cnt=0,tot=0;for(let y=Math.round(r*cs);y<Math.round((r+1)*cs);y++){for(let x=Math.round(c*cs);x<Math.round((c+1)*cs);x++){tot++;if(pix[(y*RS+x)*4+3]>30)cnt++;}}f.push(tot>0?cnt/tot:0);}}return f;}
+// 对比两个16维特征向量
+function cmpFeat(a,b){let s=0;for(let i=0;i<a.length;i++)s+=1-Math.abs(a[i]-b[i]);return s/a.length;}
+// ★ 主识别函数
+function recognize(){if(S.strokes.length===0)return{match:false,score:0};const tp=renderTarget(S.currentChar),tf=extractFeat(tp);const up=renderUser(),uf=extractFeat(up);const score=cmpFeat(tf,uf);return{match:score>=0.60,score};}
+// 更新底部状态
+function updateStatus(){if(!S.hasDrawn||S.strokes.length===0){sIcon.style.background='#ddd';sText.textContent='写吧';sText.className='';btnC.disabled=true;S.recognized=false;return;}const r=recognize();const pct=Math.round(r.score*100);if(r.match){sIcon.style.background='#4CAF50';sText.textContent='✓ '+pct+'% 写对了';sText.className='match';btnC.disabled=false;S.recognized=true;}else{sIcon.style.background='#FF9800';sText.textContent=pct+'%';sText.className='writing';btnC.disabled=false;S.recognized=false;}}
+function updateUI(){chEl.textContent=S.currentChar||'';if(S.mode==='copybook'){pgW.classList.add('show');pgB.style.width=Math.min(S.chars.length>0?S.historyIndex/S.chars.length*100:0,100)+'%';}else{pgW.classList.remove('show');}updateStatus();}
+// ========== 5. 手写输入 + 双击跳转 ==========
+let lastTap=0;
+function getPos(e){const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+function onDown(e){e.preventDefault();const now=Date.now();if(now-lastTap<400){lastTap=0;nextChar();return;}lastTap=now;const p=getPos(e);S.isDrawing=true;S.currentStroke=[{x:p.x,y:p.y}];S.hasDrawn=true;S.recognized=false;clearAT();cv.setPointerCapture(e.pointerId);updateStatus();}
+function onMove(e){e.preventDefault();if(!S.isDrawing)return;const p=getPos(e);S.currentStroke.push({x:p.x,y:p.y});cx.lineWidth=4;render();}
+function onUp(e){e.preventDefault();if(!S.isDrawing)return;S.isDrawing=false;if(S.currentStroke.length>2)S.strokes.push([...S.currentStroke]);S.currentStroke=[];render();updateStatus();const r=recognize();if(r.match)startAT();}
+cv.addEventListener('pointerdown',onDown);cv.addEventListener('pointermove',onMove);cv.addEventListener('pointerup',onUp);cv.addEventListener('pointercancel',onUp);
+// ========== 6. 跳转控制 ==========
+function clearAT(){if(S.autoTimer){clearTimeout(S.autoTimer);S.autoTimer=null;}}
+function startAT(){clearAT();S.autoTimer=setTimeout(()=>{S.autoTimer=null;nextChar();},S.autoDelay);}
+btnC.addEventListener('click',nextChar);
+function nextChar(){clearAT();if(S.mode==='random'){S.currentChar=S.chars[Math.floor(Math.random()*S.chars.length)];S.historyIndex++;}else{S.historyIndex=Math.min(S.historyIndex+1,S.chars.length-1);S.currentChar=S.chars[S.historyIndex];if(S.historyIndex>=S.chars.length-1)S.historyIndex=-1;}S.strokes=[];S.currentStroke=[];S.hasDrawn=false;S.recognized=false;render();updateUI();}
+function prevChar(){clearAT();S.strokes=[];S.currentStroke=[];S.hasDrawn=false;S.recognized=false;if(S.mode==='random'){S.currentChar=S.chars[Math.floor(Math.random()*S.chars.length)];}else{S.currentIndex=Math.max(0,(S.currentIndex||0)-1);S.currentChar=S.chars[S.currentIndex];S.historyIndex=S.currentIndex;}render();updateUI();}
+function clearStrokes(s){S.strokes=[];S.currentStroke=[];S.hasDrawn=false;S.recognized=false;if(!s)clearAT();render();updateUI();}
+function switchMode(mode){S.mode=mode;S.strokes=[];S.currentStroke=[];S.hasDrawn=false;S.recognized=false;S.historyIndex=0;S.currentIndex=0;document.getElementById('mode-label').textContent=mode==='random'?'📝 随机字':'📖 抄书';if(mode==='random'){S.chars=CHARS;}else{loadBook(0);return;}nextChar();}
+function loadBook(idx){const b=BOOKS[idx];if(!b)return;S.bookName=b.title;S.chars=b.text.split('');S.currentIndex=0;S.historyIndex=0;S.strokes=[];S.currentStroke=[];S.hasDrawn=false;S.recognized=false;S.currentChar=S.chars[0]||'';S.mode='copybook';document.getElementById('mode-label').textContent='📖 '+b.title;render();updateUI();}
+function loadUserText(text){const c=text.replace(/[^\u4e00-\u9fff]/g,'');if(c.length===0){alert('导入文本中没找到汉字');return;}S.bookName='用户导入';S.chars=c.split('');S.currentIndex=0;S.historyIndex=0;S.strokes=[];S.currentStroke=[];S.hasDrawn=false;S.recognized=false;S.currentChar=S.chars[0]||'';S.mode='copybook';document.getElementById('mode-label').textContent='📖 用户导入';render();updateUI();}
+// ========== 7. 面板 ==========
+function openSettings(){document.getElementById('panel-title').textContent='设置';document.getElementById('panel-content').innerHTML='<label>自动跳转延时</label><div class="range-row"><input type="range" id="s-delay" min="500" max="4000" step="100" value="'+S.autoDelay+'"><span id="s-delay-val">'+(S.autoDelay/1000).toFixed(1)+'秒</span></div><label>引导字透明度</label><div class="range-row"><input type="range" id="s-op" min="3" max="30" step="1" value="'+Math.round(S.guideOpacity*100)+'"><span id="s-op-val">'+Math.round(S.guideOpacity*100)+'%</span></div><button class="panel-btn primary" id="s-sw">'+(S.mode==='random'?'切换到：抄书模式':'切换到：随机模式')+'</button>'+(S.mode==='copybook'?'<button class="panel-btn" id="s-bk">选书</button>':'')+'<button class="panel-btn" id="s-im">📂 导入 TXT 文件</button><input type="file" id="file-input" accept=".txt" style="display:none">';document.getElementById('s-delay').oninput=function(){S.autoDelay=+this.value;document.getElementById('s-delay-val').textContent=(S.autoDelay/1000).toFixed(1)+'秒';};document.getElementById('s-op').oninput=function(){S.guideOpacity=+this.value/100;document.getElementById('s-op-val').textContent=this.value+'%';render();};document.getElementById('s-sw').onclick=function(){document.getElementById('panel-overlay').classList.remove('show');switchMode(S.mode==='random'?'copybook':'random');};const sb=document.getElementById('s-bk');if(sb)sb.onclick=openBookList;document.getElementById('s-im').onclick=function(){document.getElementById('file-input').click();};document.getElementById('file-input').onchange=function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(ev){loadUserText(ev.target.result);document.getElementById('panel-overlay').classList.remove('show');};r.readAsText(f,'UTF-8');};document.getElementById('panel-overlay').classList.add('show');}
+function openBookList(){document.getElementById('panel-title').textContent='选择字帖';let h='';for(let i=0;i<BOOKS.length;i++)h+='<div class="book-item" data-idx="'+i+'">'+BOOKS[i].title+'（'+BOOKS[i].text.length+'字）</div>';h+='<label id="file-input-label" for="file-input">📂 从本地导入 TXT 文件...</label><input type="file" id="file-input" accept=".txt" style="display:none">';document.getElementById('panel-content').innerHTML=h;const items=document.querySelectorAll('.book-item');for(let i=0;i<items.length;i++)items[i].onclick=function(){loadBook(+this.dataset.idx);document.getElementById('panel-overlay').classList.remove('show');};document.getElementById('file-input').onchange=function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(ev){loadUserText(ev.target.result);document.getElementById('panel-overlay').classList.remove('show');};r.readAsText(f,'UTF-8');};document.getElementById('panel-overlay').classList.add('show');}
+document.getElementById('btn-settings').onclick=openSettings;document.getElementById('mode-label').onclick=function(){switchMode(S.mode==='random'?'copybook':'random');};document.getElementById('btn-next').onclick=nextChar;document.getElementById('btn-prev').onclick=prevChar;document.getElementById('btn-clear').onclick=function(){clearStrokes(false);};document.getElementById('panel-close').onclick=function(){document.getElementById('panel-overlay').classList.remove('show');};document.getElementById('panel-overlay').onclick=function(e){if(e.target===document.getElementById('panel-overlay'))document.getElementById('panel-overlay').classList.remove('show');};window.addEventListener('resize',resize);
 function init(){resize();S.mode='random';S.chars=CHARS;S.currentChar=S.chars[Math.floor(Math.random()*S.chars.length)];S.historyIndex=0;render();updateUI();}
 init();
 </script>
